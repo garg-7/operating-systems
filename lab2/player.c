@@ -9,7 +9,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-void winhandler(int sig){
+void winhandler(int sig)
+{
     // you have won
     fprintf(stderr, "You have won.\n");
     // pid_t ppid = getppid();
@@ -17,7 +18,8 @@ void winhandler(int sig){
     exit(0);
 }
 
-void lossHandler(int sig) {
+void lossHandler(int sig)
+{
     // you have lost
     fprintf(stderr, "You have lost.\n");
     // pid_t ppid = getppid();
@@ -30,10 +32,11 @@ int main()
     srand(time(NULL));
     int n = 7;
     char choice = ' ';
-    signal(SIGUSR1, winhandler); // handle the SIGUSR1 signal that you will get if you win
+    signal(SIGUSR1, winhandler);  // handle the SIGUSR1 signal that you will get if you win
     signal(SIGUSR2, lossHandler); // handle the SIGUSR2 signla that you get if you lose
- 
-    while(1){
+
+    while (1)
+    {
         // srand(time(NULL));
         choice = (char)((random() % 7) + '0');
         putc(choice, stdout);
