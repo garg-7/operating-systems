@@ -340,7 +340,7 @@ void pre2(int arrivals[], int cpuBursts[], int n) {
 
 void RR(int arrivals[], int cpuBursts[], int n, int slice) {
     
-    printf("Preemptive shortest job first scheduling:\n\n");
+    printf("Round-robin scheduling:\n\n");
 
     int oldCpuBursts[n];
     int done[n];
@@ -454,6 +454,13 @@ void RR(int arrivals[], int cpuBursts[], int n, int slice) {
             }
 
         }
+        if (gotForFirstTime[s_idx] == 0)
+        {   
+            // if the process has got the CPU for the first time
+            gotForFirstTime[s_idx] = 1;
+            whatFirstTime[s_idx] = currTime - arrivals[s_idx];
+            printf("Process %d got the CPU for the first time.\n", s_idx);
+        }
     }
     printf("\n");
     int turnaround[n];
@@ -484,47 +491,75 @@ void priority(int arrivals[], int cpuBursts[], int priorities[], int n) {
     
     printf("Non-preemptive priority based scheduling:\n\n");
 
-    int done[n], waiting[n];
+    int done[n], waiting[n], oldCpuBursts[n];
     for (int i=0;i<n;i++){
         done[i] = 0;
         waiting[i] = 0;
+        oldCpuBursts[i] = cpuBursts[i];
     }
     int endIdx = 0;
     int currTime = 0;
+    int s_idx = 0;
 
-    while (1)
-    {
-        // get the highest priority unfinished job
-        // highest priority is the one with the lowest number
-        int highest = __INT_MAX__, s_idx = -1;
-        for (int i = 0; i <= endIdx; i++)
-        {
-            if (done[i] == 0 && highest > priorities[i])
-            {
-                highest = priorities[i];
-                s_idx = i;
+    printf("[t=%d] Process %d was chosen.\n", currTime, s_idx);
+    while(1) {
+        currTime += 1;
+        cpuBursts[s_idx] -= 1;
+
+        for (int i=0;i<=endIdx;i++) {
+            if (done[i] == 0 && i!=s_idx) {
+                waiting[i] += 1;
             }
         }
-        printf("Process %d with priority %d was chosen.\n", s_idx, priorities[s_idx]);
-        waiting[s_idx] = currTime - arrivals[s_idx];
-        printf("It was allotted CPU for %d s and it's done.\n", cpuBursts[s_idx]);
-        currTime += cpuBursts[s_idx];
-        done[s_idx] = 1;
-        int allDone = 1;
+
+        while (endIdx<n-1 && arrivals[endIdx+1] == currTime)
+            // process arrived in that one second
+            endIdx += 1;
         
-        for (int i = 0; i < n; i++)
-        {
-            if (done[i] == 0)
+        // if the current process is done, do something new
+        if (cpuBursts[s_idx] == 0) {
+            done[s_idx] = 1;
+            
+            // pick the next process based on the priority
+            int vip = __INT_MAX__, found = 0;
+            for (int i = 0; i <= endIdx; i++)
             {
-                allDone = 0;
-                break;
+                if (done[i] == 0 && vip > priorities[i])
+                {
+                    vip = priorities[i];
+                    s_idx = i;
+                    found = 1;
+                }
+            }
+            if (found==0 && endIdx == n-1) {
+                    printf("[t=%d] No processes left.\n", currTime);
+                    break;
+            }
+            else if (found==0)
+            {
+                // some are left but not found. So jump in time to the next
+                endIdx += 1;
+                currTime += arrivals[endIdx] - currTime;
+
+                // to incorporate same arrival times
+                while (endIdx<n-1 && arrivals[endIdx+1] == currTime)
+                    endIdx += 1;
+
+                int shortest = __INT_MAX__, found = 0;
+                for (int i = 0; i <= endIdx; i++)
+                {
+                    if (done[i] == 0 && shortest > cpuBursts[i])
+                    {
+                        shortest = cpuBursts[i];
+                        s_idx = i;
+                    }
+                }
+                printf("[t=%d] Process %d is picked.\n", currTime, s_idx);
+            }
+            else {
+                printf("[t=%d] Process %d is picked.\n", currTime, s_idx);
             }
         }
-        if (allDone == 1)
-            break;
-        while (endIdx < n - 1 && arrivals[endIdx + 1] <= currTime)
-            endIdx++;
-        printf("\n");
     }
     printf("\n");
     int turnaround[n];
@@ -536,36 +571,30 @@ void priority(int arrivals[], int cpuBursts[], int priorities[], int n) {
     for (int i = 0; i < n; i++)
     {
         avgWaiting += waiting[i];
-        turnaround[i] = waiting[i] + cpuBursts[i];
+        turnaround[i] = waiting[i] + oldCpuBursts[i];
         avgTurnaround += turnaround[i];
     }
 
     avgWaiting /= n;
     avgTurnaround /= n;
-    // for(int i=0;i<n;i++){
-    //     printf("%d, %d, %d\n", arrivals[i], cpuBursts[i], waiting[i]);
-    // }
 
     printf("Average waiting time: %.2f seconds\n", avgWaiting);
     printf("Average turnaround time: %.2f seconds\n", avgTurnaround);
     printf("Average response time: %.2f seconds\n", avgWaiting);
-    // free(waiting);
-    // free(done);
-    // free(turnaround);
     return;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
-    FILE *f = fopen("process_arrival_trace.txt", "r");
+    FILE *f = fopen("process_trace.txt", "r");
 
     int a, b, c, n = 0;
+    
+    // first get the number of processes
     while (fscanf(f, "%d,%d,%d", &a, &b, &c) > 0)
     {
         n++;
     }
-    // printf("%d\n", n);
-    // exit(1);
 
     int arrivals[n];
     int priorities[n];
@@ -574,20 +603,30 @@ int main()
     fseek(f, 0, SEEK_SET);
 
     int i = 0;
+    // now get the arrival, priority and burst time values
     while (fscanf(f, "%d,%d,%d", &arrivals[i], &priorities[i], &cpuBursts[i]) > 0)
     {
         i++;
     }
 
-    // FCFS(arrivals, cpuBursts, n);
-    // nonPreSJF(arrivals, cpuBursts, n);
+    if (strcmp(argv[1],"FCFS")==0)
+        FCFS(arrivals, cpuBursts, n);
+    
+    else if (strcmp(argv[1],"NSJF")==0)
+    nonPreSJF(arrivals, cpuBursts, n);
     // preSJF(arrivals, cpuBursts, n);
-    // pre2(arrivals, cpuBursts, n);
-    int quantum = 2;
-    RR(arrivals, cpuBursts, n, quantum);
-    // priority(arrivals, cpuBursts, priorities, n);
+    
+    else if (strcmp(argv[1],"PSJF")==0)
+    pre2(arrivals, cpuBursts, n);
+    
+    else if (strcmp(argv[1],"RR")==0) {
+        int quantum = 2;
+        RR(arrivals, cpuBursts, n, quantum);
+    }
 
-    // for(int i=0;i<n;i++){
-    //     printf("%d, %d, %d\n", arrivals[i], cpuBursts[i], waiting[i]);
-    // }
+    else if (strcmp(argv[1],"P")==0)
+    priority(arrivals, cpuBursts, priorities, n);
+
+    else 
+        printf("Invalid option.\n");
 }
