@@ -3,17 +3,22 @@
 #include <time.h>
 #include <math.h>
 
-int main()
+int main(int argc, char *argv[])
 {
     srand(time(NULL));
     
-    int n;
-    printf("Enter the number of processes: ");
-    scanf("%d", &n);
-
-    float mu;
-    printf("Enter the mean of exponential distribution: ");
-    scanf("%f", &mu);
+    int n; float mu;
+    if (argc == 3) {
+        n = atoi(argv[1]);
+        mu = atof(argv[2]);
+    }
+    else {
+        printf("Enter the number of processes: ");
+        scanf("%d", &n);
+        printf("Enter the mean of exponential distribution: ");
+        scanf("%f", &mu);
+    }
+ 
     if (mu == 0)
     {
         fprintf(stderr, "Invalid mu.\n");
@@ -33,9 +38,10 @@ int main()
         cpuBursts[i] = rand() % (20 + 1 - 1) + 1;   // between 1 and 20
     }
 
-    FILE *f = fopen("process_arrival_trace.txt", "w");
+    FILE *f = fopen("process_trace.txt", "w");
     for (int i = 0; i < n; i++)
     {
         fprintf(f, "%d,%d,%d\n", arrivals[i], priorities[i], cpuBursts[i]);
+        fprintf(stdout, "%d,%d,%d\n", arrivals[i], priorities[i], cpuBursts[i]);
     }
 }
