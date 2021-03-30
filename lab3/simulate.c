@@ -180,10 +180,11 @@ void pre2(int arrivals[], int cpuBursts[], int n) {
                         found = 1;
                     }
                 }
-                if (found==0) {
+                if (found==0 && endIdx == n-1) {
                     printf("[t=%d] No processes left.\n", currTime);
                     break;
                 }
+                if (found!=0)
                 printf("[t=%d] Process %d is picked.\n", currTime, s_idx);
             }
         }
@@ -344,7 +345,7 @@ void preSJF(int arrivals[], int cpuBursts[], int n) {
 
 void RR(int arrivals[], int cpuBursts[], int n, int slice) {
     
-    printf("Round-robin scheduling:\n\n");
+    printf("Preemptive shortest job first scheduling:\n\n");
 
     int oldCpuBursts[n];
     int done[n];
@@ -360,90 +361,84 @@ void RR(int arrivals[], int cpuBursts[], int n, int slice) {
         oldCpuBursts[i] = cpuBursts[i];
     }
 
-    int currTime = 0; int endIdx = 0;
-    int s_idx = 0;
-    while(1){
-        // select the oldest job i.e. with the least arrivals[i]
-        
-        int left = 0;
-        for (int i = s_idx; i <= endIdx; i++)
-        {
-            if (done[i] == 0)
-            {
-                s_idx = i;
-                left = 1;
-                break;
+    int currTime = 0; int endIdx = 0, s_idx = 0;
+    gotForFirstTime[0] = 1;
+    whatFirstTime[0] = 0;
+    printf("[t=%d] Process 0 is picked.\n", currTime);
+    while(1) {
+        currTime += slice;
+        cpuBursts[s_idx] -= slice;
+        for (int i=0;i<=endIdx;i++) {
+            if (done[i] == 0 && i!=s_idx) {
+                waiting[i] += slice;
             }
         }
-
-        if (left==0){
-            printf("No processes left.\n");
-            break;
+        if (cpuBursts[s_idx] <= 0){
+            done[s_idx] = 1;
+            cpuBursts[s_idx] = 0;
         }
-
+        
+        if (endIdx<n-1 && arrivals[endIdx+1] == currTime) {
+            endIdx += 1;
+            if (done[s_idx]==1)
+            {
+                // get the shortest
+                int shortest = __INT_MAX__;
+                for(int i=0;i<=endIdx;i++)
+                {
+                    if (done[i] == 0 && shortest > cpuBursts[i])
+                    {
+                        shortest = cpuBursts[i];
+                        s_idx = i;
+                    }
+                }
+                printf("[t=%d] Process %d is picked.\n", currTime, s_idx);
+            }
+            else {
+                // current is not over and the is the best yet
+                // so just compare with it
+                if (cpuBursts[endIdx] < cpuBursts[s_idx]){
+                    s_idx = endIdx;
+                    printf("[t=%d] Process %d is picked.\n", currTime, s_idx);
+                }
+            }
+        }
+        else {
+            //a new process hasn't arrived.
+            // just check if the current is done
+            if (done[s_idx]==1){
+                // get the next shortest and if none is there,
+                // terminate.
+                int shortest = __INT_MAX__, found = 0;
+                for(int i=0;i<=endIdx;i++)
+                {
+                    if (done[i] == 0 && shortest > cpuBursts[i])
+                    {
+                        shortest = cpuBursts[i];
+                        s_idx = i;
+                        found = 1;
+                    }
+                }
+                if (found==0) {
+                    printf("[t=%d] No processes left.\n", currTime);
+                    break;
+                }
+                printf("[t=%d] Process %d is picked.\n", currTime, s_idx);
+            }
+        }
         if (gotForFirstTime[s_idx] == 0)
         {   
-            // if the process has got the CPU for the first time, 
-            // note the response time
+            // if the process has got the CPU for the first time
             gotForFirstTime[s_idx] = 1;
             whatFirstTime[s_idx] = currTime - arrivals[s_idx];
             printf("Process %d got the CPU for the first time.\n", s_idx);
         }
-
-        // if (endIdx<n-1){
-            int timeToRun = slice;
-            cpuBursts[s_idx] -= timeToRun;
-            printf("Process %d was allotted CPU for %d s.\n", s_idx, timeToRun);
-            cpuBursts[s_idx] = MAX(0, cpuBursts[s_idx]);
-            currTime += timeToRun;
-            arrivals[s_idx] = currTime;
-            if (cpuBursts[s_idx] == 0) {
-                done[s_idx] = 1;
-                printf("Process %d is done.\n", s_idx);
-            }
-            for(int i=0;i<=endIdx;i++)
-            {
-                if (done[i] == 0 && i!=s_idx )
-                    waiting[i] += timeToRun;
-            }
-        // }
-        // else {
-        //     // all processes are already in so whatever was selected, has to be run in its entirety
-        //     int timeToRun = cpuBursts[s_idx];
-        //     printf("Process %d was allotted CPU for %d s.\n", s_idx, timeToRun);
-        //     cpuBursts[s_idx] = 0;
-        //     done[s_idx] = 1;
-        //     currTime += timeToRun;
-        //     for(int i=0;i<=endIdx;i++)
-        //     {
-        //         if (done[i] == 0 && i!=s_idx )
-        //             waiting[i] += timeToRun;
-        //     }
-        // }
-
-        int allDone = 1;
-        
-        for (int i = 0; i < n; i++)
-        {
-            if (done[i] == 0)
-            {
-                allDone = 0;
-                break;
-            }
-        }
-        if (allDone == 1)
-            break;
-
-        while (endIdx < n - 1 && arrivals[endIdx + 1] <= currTime)
-            endIdx++;
-        printf("\n");
     }
     printf("\n");
     int turnaround[n];
     for (int i=0;i<n;i++)
     turnaround[i] = 0;
     float avgWaiting = 0, avgTurnaround = 0, avgResponse = 0;
-    
 
     for (int i = 0; i < n; i++)
     {
@@ -462,9 +457,6 @@ void RR(int arrivals[], int cpuBursts[], int n, int slice) {
     printf("Average waiting time: %.2f seconds\n", avgWaiting);
     printf("Average turnaround time: %.2f seconds\n", avgTurnaround);
     printf("Average response time: %.2f seconds\n", avgResponse);
-    // free(waiting);
-    // free(done);
-    // free(turnaround);
 }
 
 void priority(int arrivals[], int cpuBursts[], int priorities[], int n) {
