@@ -38,6 +38,7 @@ void FCFS(int arrivals[], int cpuBursts[], int n)
         // if the current process is done, do something new
         if (cpuBursts[s_idx] == 0) {
             done[s_idx] = 1;
+            printf("[t=%d] Process %d has completed.\n", currTime, s_idx);
             // pick the next process
             if (endIdx == s_idx) {
                 // no new process has come 
@@ -108,6 +109,7 @@ void nonPreSJF(int arrivals[], int cpuBursts[], int n)
         // if the current process is done, do something new
         if (cpuBursts[s_idx] == 0) {
             done[s_idx] = 1;
+            printf("[t=%d] Process %d has completed.\n", currTime, s_idx);
             // pick the next process
             int shortest = __INT_MAX__, found = 0;
             for (int i = 0; i <= endIdx; i++)
@@ -142,10 +144,10 @@ void nonPreSJF(int arrivals[], int cpuBursts[], int n)
                         s_idx = i;
                     }
                 }
-                printf("[t=%d] Process %d is picked.\n", currTime, s_idx);
+                printf("[t=%d] Process %d was chosen.\n", currTime, s_idx);
             }
             else {
-                printf("[t=%d] Process %d is picked.\n", currTime, s_idx);
+                printf("[t=%d] Process %d was chosen.\n", currTime, s_idx);
             }
         }
     }
@@ -173,7 +175,7 @@ void nonPreSJF(int arrivals[], int cpuBursts[], int n)
 }
 
 
-void pre2(int arrivals[], int cpuBursts[], int n) {
+void preSJF(int arrivals[], int cpuBursts[], int n) {
 
     printf("Preemptive shortest job first scheduling:\n\n");
 
@@ -194,7 +196,7 @@ void pre2(int arrivals[], int cpuBursts[], int n) {
     int currTime = 0; int endIdx = 0, s_idx = 0;
     gotForFirstTime[0] = 1;
     whatFirstTime[0] = 0;
-    printf("[t=%d] Process 0 is picked.\n", currTime);
+    printf("[t=%d] Process %d was chosen.\n", currTime, s_idx);
     while(1) {
         currTime += 1;
         cpuBursts[s_idx] -= 1;
@@ -219,6 +221,7 @@ void pre2(int arrivals[], int cpuBursts[], int n) {
         
             if (done[s_idx]==1)
             {
+                printf("[t=%d] Process %d has completed.\n", currTime, s_idx);
                 // get the shortest
                 int shortest = __INT_MAX__;
                 for(int i=0;i<=endIdx;i++)
@@ -229,7 +232,7 @@ void pre2(int arrivals[], int cpuBursts[], int n) {
                         s_idx = i;
                     }
                 }
-                printf("[t=%d] Process %d is picked.\n", currTime, s_idx);
+                printf("[t=%d] Process %d was chosen.\n", currTime, s_idx);
             }
             else {
                 // current is not over and the is the best yet
@@ -246,8 +249,9 @@ void pre2(int arrivals[], int cpuBursts[], int n) {
                     }
                 }
                 if (cpuBursts[temp_idx] < cpuBursts[s_idx]){
+                    printf("[t=%d] Process %d was preempted.\n", currTime, s_idx);
                     s_idx = temp_idx;
-                    printf("[t=%d] Process %d is picked.\n", currTime, s_idx);
+                    printf("[t=%d] Process %d was chosen.\n", currTime, s_idx);
                 }
                 else {
                     // s_idx stays the same i.e. continuing with the current process
@@ -260,6 +264,7 @@ void pre2(int arrivals[], int cpuBursts[], int n) {
             // just check if the current is done
 
             if (done[s_idx]==1){
+                printf("[t=%d] Process %d has completed.\n", currTime, s_idx);
                 // get the next shortest and if none is there,
                 // terminate.
                 int shortest = __INT_MAX__, found = 0;
@@ -294,11 +299,11 @@ void pre2(int arrivals[], int cpuBursts[], int n) {
                             s_idx = i;
                         }
                     }
-                    printf("[t=%d] Process %d is picked.\n", currTime, s_idx);
+                    printf("[t=%d] Process %d was chosen.\n", currTime, s_idx);
                 }
                 else
                     // shortest was found already
-                    printf("[t=%d] Process %d is picked.\n", currTime, s_idx);
+                    printf("[t=%d] Process %d was chosen.\n", currTime, s_idx);
             }
             else {
                 // current is not done so continue.
@@ -385,6 +390,7 @@ void RR(int arrivals[], int cpuBursts[], int n, int slice) {
             // get the next process
             if (cpuBursts[s_idx]==0){
                 done[s_idx] = 1;
+                printf("[t=%d] Process %d has completed.\n", currTime, s_idx);
             }
             else {
                 // so that current is at the back of the queue
@@ -412,7 +418,7 @@ void RR(int arrivals[], int cpuBursts[], int n, int slice) {
             }
             else {
                 // shortest was found already
-                printf("[t=%d] Process %d is picked.\n", currTime, s_idx);
+                printf("[t=%d] Process %d was chosen.\n", currTime, s_idx);
             }
         }
         else {
@@ -421,6 +427,7 @@ void RR(int arrivals[], int cpuBursts[], int n, int slice) {
 
             if (cpuBursts[s_idx]==0){
                 // current is done
+                printf("[t=%d] Process %d has completed.\n", currTime, s_idx);
                 currSlice = 0;
                 done[s_idx] = 1;
                 int youngest = __INT_MAX__, found = 0;
@@ -445,7 +452,7 @@ void RR(int arrivals[], int cpuBursts[], int n, int slice) {
                 }
                 else {
                     // shortest was found already
-                    printf("[t=%d] Process %d is picked.\n", currTime, s_idx);
+                    printf("[t=%d] Process %d was chosen.\n", currTime, s_idx);
                 }
             }
             else {
@@ -489,7 +496,7 @@ void RR(int arrivals[], int cpuBursts[], int n, int slice) {
 
 void priority(int arrivals[], int cpuBursts[], int priorities[], int n) {
     
-    printf("Non-preemptive priority based scheduling:\n\n");
+    printf("Priority based scheduling (non-preemptive):\n\n");
 
     int done[n], waiting[n], oldCpuBursts[n];
     for (int i=0;i<n;i++){
@@ -519,6 +526,7 @@ void priority(int arrivals[], int cpuBursts[], int priorities[], int n) {
         // if the current process is done, do something new
         if (cpuBursts[s_idx] == 0) {
             done[s_idx] = 1;
+            printf("[t=%d] Process %d has completed.\n", currTime, s_idx);
             
             // pick the next process based on the priority
             int vip = __INT_MAX__, found = 0;
@@ -554,10 +562,10 @@ void priority(int arrivals[], int cpuBursts[], int priorities[], int n) {
                         s_idx = i;
                     }
                 }
-                printf("[t=%d] Process %d is picked.\n", currTime, s_idx);
+                printf("[t=%d] Process %d was chosen.\n", currTime, s_idx);
             }
             else {
-                printf("[t=%d] Process %d is picked.\n", currTime, s_idx);
+                printf("[t=%d] Process %d was chosen.\n", currTime, s_idx);
             }
         }
     }
@@ -617,7 +625,7 @@ int main(int argc, char *argv[])
     // preSJF(arrivals, cpuBursts, n);
     
     else if (strcmp(argv[1],"PSJF")==0)
-    pre2(arrivals, cpuBursts, n);
+    preSJF(arrivals, cpuBursts, n);
     
     else if (strcmp(argv[1],"RR")==0) {
         int quantum = 2;

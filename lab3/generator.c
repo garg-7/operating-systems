@@ -51,6 +51,6 @@ int main(int argc, char *argv[])
     for (int i = 0; i < n; i++)
     {
         fprintf(f, "%d,%d,%d\n", arrivals[i], priorities[i], cpuBursts[i]);
-        // fprintf(stdout, "%d,%d,%d\n", aGenerated[i], priorities[i], cpuBursts[i]);
+        fprintf(stdout, "%d,%d,%d\n", arrivals[i], priorities[i], cpuBursts[i]);
     }
 }
