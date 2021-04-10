@@ -8,41 +8,53 @@
 
 #define M 10000 /*Buffer size*/
 
-/* The data structure to hold the buffer
-and related pointers. */
+/* The data structure to be sent to the worker threads */
 typedef struct unit {
-    int *pLoc;
-    int *buffer;
-    int *cLoc;
-    int count;
+    pthread_t *t;   // list of worker threads
+    int n;          // the number of worker threads
+    int *pLoc;      // location where producer will next fill
+    int *buffer;    // buffer containing the shared data
+    int *cLoc;      // location from where consumer will next read.
+    int *done;      // keep record of whether the producers are done.
+    int count;      // number of data items currently in the buffer
 } unit;
 
+/* The data structure to be sent to the scheduler thread */
 typedef struct schedulerUnit {
-    pthread_t *t;
-    int n;
-    int slice;
-    unit *u;
-    int *cat;
+    unit *u;        // the data structure sent to the worker threads
+    int slice;      // time slice to be allotted to each worker thread
+    int *cat;       // list that contains category of worker (1 means P, 0 means C)
 } sUnit;
 
-// put the thread to sleep 
+/* put the thread to sleep */ 
 void putMeToSleep(int c){
     pause();
 }
 
-// wake up the thread
+/* wake up the thread */
 void wakeMeUp(int c){}
 
-// consumer function
+
+int getMyIdx(pthread_t p, pthread_t *list, int n){
+    for(int i=0;i<n;i++)
+    {
+        if (p == list[i])
+            return i;
+    }
+    printf("[ERROR] Thread %ld is not in the threads' list.\n", p);
+    exit(1);
+}
+
+/* consumer function */
 void* consumer(unit *u)
 {   
     // printf("Got here11.\n");
     pthread_detach(pthread_self());
     signal(SIGUSR1, putMeToSleep);
     signal(SIGUSR2, wakeMeUp);
-    pause();
     int consumed;
     pthread_mutex_t mlock = PTHREAD_MUTEX_INITIALIZER;
+    pause();
     // printf("Got here7.\n");
     while(true) {
         // printf("hi1.\n");
@@ -57,15 +69,16 @@ void* consumer(unit *u)
     // printf("Got here8.\n");
 }
 
-// producer thread
+/* producer function */
 void* producer(unit *u)
 {   
     pthread_detach(pthread_self());
+    int idx = getMyIdx(pthread_self(), u->t, u->n);
     signal(SIGUSR1, putMeToSleep);
     signal(SIGUSR2, wakeMeUp);
-    pause();
     pthread_mutex_t mlock = PTHREAD_MUTEX_INITIALIZER;
     srand(time(NULL));
+    pause();
     // create a 1000 integers and add them as and when you 
     // get the chance
     // printf("Got here4.\n");
@@ -78,40 +91,46 @@ void* producer(unit *u)
         *(u->pLoc)=(*(u->pLoc)+1)%M;
         pthread_mutex_unlock(&mlock);
     }
-    while(1);
+    u->done[idx] = 1;
     // printf("Got here6.\n");
 }
 
-// scheduling thread
+/*Scheduler function*/
 void* scheduler(sUnit * data) {
+    printf("\nBeginning scheduler operation...\n\n");
     pthread_detach(pthread_self());
     // printf("Got here5.\n");
-    printf("n: %d\n", data->n);
-    printf("count: %d\n", data->u->count);
-    printf("data[0]: %ld\n", data->t[0]);
-    int done = false;
-    while(1){
-        for(int i=0;i<(data->n);i++){
-            if (data->cat[i]==1)
-            printf("Waking up producer [%ld]\n", data->t[i]);
-            else 
-            printf("Waking up consumer [%ld]\n", data->t[i]);
+    printf("Number of worker threads: %d\n", data->u->n);
+    printf("Time slice allotted to every worker: %d second(s)\n\n", data->slice);
+    // printf("data[0]: %ld\n", data->t[0]);
+    
+    // If in an iteration, none of the producers were woken up
+    // flag would be false.
+    int flag = true;
+
+    while(flag){
+        flag = false;
+        for(int i=0;i<(data->u->n);i++){
             int prev_count = data->u->count;
-            pthread_kill(data->t[i], SIGUSR2);
-            // printf("Got here00.\n");
-            sleep(data->slice);
-            pthread_kill(data->t[i], SIGUSR1);
-            int new_count = data->u->count;
-            printf("[Paused thread: %ld], ", data->t[i]);
-            printf("Buffer count = %d\n",  data->u->count);
-            if(data->cat[i]==1 && new_count==prev_count && new_count == 0){
-                done = true;
-                break;
+            if (data->u->done[i]==1)
+                printf("Producer [%ld] has already completed its job.\n\n", data->u->t[i]);
+            else {
+                if (data->cat[i]==1) {
+                    printf("Waking up producer [%ld]\n", data->u->t[i]);
+                    flag = true;
+                }
+                else 
+                    printf("Waking up consumer [%ld]\n", data->u->t[i]);
+                pthread_kill(data->u->t[i], SIGUSR2);
+                sleep(data->slice);
+                pthread_kill(data->u->t[i], SIGUSR1);
+                printf("[Paused thread: %ld], ", data->u->t[i]);
+                printf("Buffer count = %d\n\n",  data->u->count);
             }
         }
-        if (done==true)
-        break;
     }
+    printf("\nNone of the producers have anything to write.\n");
+    printf("Exiting.\n\n");
     exit(0);
     // printf("Got here3.\n");
 }
@@ -127,7 +146,7 @@ int main(int argc, char *argv[])
     int q = 1;
 
     srand(time(NULL));
-    pthread_t tids[n]; // thread IDs
+    pthread_t tids[n];  // thread IDs
     int category[n];    // producer / consumer
     
     // create the shared buffer
@@ -138,16 +157,20 @@ int main(int argc, char *argv[])
     u.pLoc = (int*)malloc(sizeof(int));
     *u.pLoc = 0;
     u.count = 0;
-
+    u.done = (int*)malloc(n*sizeof(int));
+    for(int i=0;i<n;i++)
+        u.done[i] = 0;
+    u.n = n;
+    u.t = (pthread_t*)malloc(sizeof(pthread_t));
+    u.t = tids;
+    
     sUnit su;
-    su.n = n;
     su.slice = q;
-    su.t = (pthread_t*)malloc(sizeof(pthread_t));
-    su.t = tids;
     su.u = (unit*)malloc(sizeof(unit));
     su.u = &u;
     su.cat = (int*)malloc(sizeof(int));
     su.cat = category;
+
     // create n new threads
     for (int i = 0; i < n; i++)
     {
