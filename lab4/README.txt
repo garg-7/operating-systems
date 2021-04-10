@@ -11,9 +11,11 @@ gcc sch.c -lpthread
 
 -----------------------------------------------------------
 
-Note: The execution of the program is self-explanatory.
+Note: - The execution of the program is self-explanatory.
 It asks the user for the number of workers threads,
 the buffer max size and the time slice to be allotted to
 each worker thread.
+
+ - The program has been written and tested on Ubuntu 20.04.
 
 -----------------------------------------------------------
