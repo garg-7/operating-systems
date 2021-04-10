@@ -27,6 +27,8 @@ typedef struct schedulerUnit
     int *cat;               // list that contains category of worker (1 means P, 0 means C)
 } sUnit;
 
+pthread_mutex_t mlock = PTHREAD_MUTEX_INITIALIZER;
+
 /* put the thread to sleep */
 void putMeToSleep(int c)
 {
@@ -57,15 +59,16 @@ void *consumer(unit *u)
     signal(SIGUSR2, wakeMeUp);
 
     int consumed;
-    pthread_mutex_t mlock = PTHREAD_MUTEX_INITIALIZER;
     pause();
     
     while (true)
     {
-        pthread_mutex_lock(&mlock);
         
         while ((u->count) == 0)
             ; // buffer is empty, wait
+        
+        pthread_mutex_lock(&mlock);
+        
         consumed = u->buffer[*(u->cLoc)];
         u->count--;
         *(u->cLoc) = (*(u->cLoc) + 1) % u->M;
@@ -83,7 +86,7 @@ void *producer(unit *u)
     signal(SIGUSR1, putMeToSleep);
     signal(SIGUSR2, wakeMeUp);
     
-    pthread_mutex_t mlock = PTHREAD_MUTEX_INITIALIZER;
+    // pthread_mutex_t mlock = PTHREAD_MUTEX_INITIALIZER;
     
     srand(time(NULL));
     pause();
@@ -92,10 +95,11 @@ void *producer(unit *u)
     {
         int generated = rand();
         
-        pthread_mutex_lock(&mlock);
         
         while ((u->count) == u->M)
             ;
+        pthread_mutex_lock(&mlock);
+        
         u->buffer[*(u->pLoc)] = generated;
         u->count++;
         *(u->pLoc) = (*(u->pLoc) + 1) % u->M;
