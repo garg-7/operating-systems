@@ -9,122 +9,286 @@
 #define CUSTOMERS 50
 #define WAKEUP SIGUSR1
 #define SLEEPNOW SIGUSR2
+#define STAGE1
+#define STAGE2
+#define STAGE3
+#define STAGE4
+#define STAGE5
 
 pthread_mutex_t tokenLock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t wAreaLock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t sofaLock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t printLock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t barberLock = PTHREAD_MUTEX_INITIALIZER;
+
+typedef struct gkStuct{
+    pthread_t *customers;
+    int *tokens;
+    int custNo;
+    int *customerServed;
+    int everyoneServed;
+} gkStruct;
 
 typedef struct customerStruct{
     pthread_t *bChairs;
-    pthread_t *wArea;
-    pthread_t *wChairs;
+    pthread_t * barbers;
+    gkStruct* gk;
     int bNo;
     int wNo;
     int cNo;
-    int nextSofa;
-    int nextWaiting;
-    int nextBarber;
-    int *tokens;
+    int sofaCurrent;
+    int waitingCurrent;
+    int barberCurrent;
+    int *acceptingPayment;
+    int *paymentDone;
+    int *stages;
+    float *amountEarned;
 } customerStruct;
 
 typedef struct barberStruct{
-    pthread_t cleaningKit;          // the barber that is using the cleaning kit
+    pthread_t *cleaningKit;          // the barber that is using the cleaning kit
+    pthread_t *cashier;              // the barber that is using the cash register
+    pthread_t *barbers;
+    pthread_t *bChairs;
+    gkStruct* gk;
+    int bNo;
 } barberStruct;
 
-typedef struct gkStuct{
-    int *tokens;
-    pthread_t *customers;
-    int cNo;
-} gkStruct;
 
-void enterShop(customerStruct *c){
+int getIdx(pthread_t * c, int n, pthread_t curr){
+    for(int i=0;i<n;i++){
+        if (c[i]==curr)
+            return i;
+    }
+    printf("[ERROR] Thread %ld is not in the list.\n", curr);
+    exit(3);
+}
+
+void enterShop(customerStruct *c, int selfIdx){
     /* Gatekeeper has given you the token.
     Occupy a seat in the waiting area */
+    printf("Customer %d collects a token from the gatekeeper.\n", selfIdx);
     pthread_mutex_lock(&wAreaLock);
-    c->wArea[c->nextWaiting] = pthread_self();
-    c->nextWaiting =+ 1;
-    c->nextWaiting = (c->nextWaiting) % (c-> wNo);
+    c->waitingCurrent --;
     pthread_mutex_unlock(&wAreaLock);
+    c->stages[getIdx(c->gk->customers, c->gk->custNo, pthread_self())] = 1;
+    printf("Customer %d enters the barbershop.\n", selfIdx);
+    printf("Customer %d is in the waiting area.\n", selfIdx);
     return;
 }
 
-void sitOnSofa(customerStruct *c){
+void sitOnSofa(customerStruct *c, int selfIdx){
     /* Occupy a location in the waiting chairs 
     as per availability. */
-    while(true){
-        pthread_mutex_lock(&sofaLock);
-        if (c->nextSofa==-1);
-        else {
+    
+    if (getIdx(c->gk->customers, c->gk->custNo, pthread_self())==0){
+        while(true){
+            pthread_mutex_lock(&sofaLock);
+            if (c->sofaCurrent==0);
+            else {
+                pthread_mutex_lock(&wAreaLock);
+                c->waitingCurrent += 1;
+                pthread_mutex_unlock(&wAreaLock);
+                c->sofaCurrent -= 1;
+                pthread_mutex_unlock(&sofaLock);
+                c->stages[getIdx(c->gk->customers, c->gk->custNo, pthread_self())] = 2;
+                printf("Customer %d takes a seat on the sofa in the waiting room.\n", selfIdx);
+                break;
+            }
+            pthread_mutex_unlock(&sofaLock);
+        }
+    }
+    else { // to prevent starvation
+        while(c->stages[getIdx(c->gk->customers, c->gk->custNo, pthread_self())-1]<2);
+        while(true){
+            pthread_mutex_lock(&sofaLock);
+            if (c->sofaCurrent==0);
+            else {
+                pthread_mutex_lock(&wAreaLock);
+                c->waitingCurrent += 1;
+                pthread_mutex_unlock(&wAreaLock);
+                c->sofaCurrent -= 1;
+                pthread_mutex_unlock(&sofaLock);
+                c->stages[getIdx(c->gk->customers, c->gk->custNo, pthread_self())] = 2;
+                printf("Customer %d takes a seat on the sofa in the waiting room.\n", selfIdx);
+                break;
+            }
+            pthread_mutex_unlock(&sofaLock);
+        }
+    }
+    return;
+}
 
-            c->wArea[c->nextWaiting] = pthread_self();
-            c->nextWaiting =+ 1;
-            c->nextWaiting = (c->nextWaiting) % (c-> wNo);
+void sitInBarberChair(customerStruct* c, int selfIdx){
+    /* Occupy a barber chair as per availability. */
+    if (getIdx(c->gk->customers, c->gk->custNo, pthread_self())==0){
+        while(true){
+            pthread_mutex_lock(&barberLock);
+            if (c->barberCurrent==0);
+            else {
+                int barberIdx = -1;
+                pthread_mutex_lock(&sofaLock);
+                c->sofaCurrent += 1;
+                pthread_mutex_unlock(&sofaLock);
+                c->barberCurrent -= 1;
+                for(int i=0;i<c->bNo;i++){
+                    if(c->bChairs[i]==-1){
+                        //occupy the chair
+                        c->bChairs[i] = pthread_self();
+                        barberIdx = i;
+                        // wake up the barber
+                        pthread_kill(c->barbers[barberIdx], WAKEUP);
+                        break;
+                    }
+                }
+                pthread_mutex_unlock(&barberLock);
+                c->stages[getIdx(c->gk->customers, c->gk->custNo, pthread_self())] = 3;
+                printf("Customer %d sits on barber chair %d for a haircut.\n", selfIdx, barberIdx);
+                break;
+            }
+            pthread_mutex_unlock(&barberLock);
+        }
+    }
+    else { // to prevent starvation
+        while(c->stages[getIdx(c->gk->customers, c->gk->custNo, pthread_self())-1]<3);
+        while(true){
+            pthread_mutex_lock(&barberLock);
+            if (c->barberCurrent==0);
+            else {
+                int barberIdx = -1;
+                pthread_mutex_lock(&sofaLock);
+                c->sofaCurrent += 1;
+                pthread_mutex_unlock(&sofaLock);
+                c->barberCurrent -= 1;
+                for(int i=0;i<c->bNo;i++){
+                    if(c->bChairs[i]==-1){
+                        c->bChairs[i] = pthread_self();
+                        barberIdx = i;
+                        break;
+                    }
+                }
+                pthread_mutex_unlock(&barberLock);
+                c->stages[getIdx(c->gk->customers, c->gk->custNo, pthread_self())] = 3;
+                printf("Customer %d sits on barber chair %d for a haircut.\n", selfIdx, barberIdx);
+                break;
+            }
+            pthread_mutex_unlock(&barberLock);
+        }
+    }
+    return;
+}
+
+void waitForPayment(customerStruct *c, int selfIdx){
+    /* Wait till barber is accepting payment. */
+    int selfIdx = getIdx(c->gk->customers, c->gk->custNo, pthread_self());
+    int barberIdx = -1;
+    for (int i=0;i<c->bNo;i++){
+        if (c->bChairs[i]==selfIdx){
+            barberIdx = i;
             break;
         }
-        pthread_mutex_unlock(&sofaLock);
     }
+    while(c->acceptingPayment[barberIdx]!=1); // till acceptingPayment[barberIdx] is not 1. wait.
+    return;
 }
 
-void sitInBarberChair(){
-    /* Occupy a barber chair as per availability. */
-}
-
-void waitForPayment(){
-    /* Wait till barber is accepting payment. */
-}
-
-void pay(){
+void pay(customerStruct *c, int selfIdx){
     /* Pay the barber. */
+    int selfIdx = getIdx(c->gk->customers, c->gk->custNo, pthread_self());
+    int barberIdx = -1;
+    for (int i=0;i<c->bNo;i++){
+        if (c->bChairs[i]==selfIdx){
+            barberIdx = i;
+            break;
+        }
+    }
+    // make the payment
+    c->amountEarned[barberIdx] += 1;
+    c->paymentDone[barberIdx] = 1;
+    return;
 }
 
-void exitShop(){
+void exitShop(customerStruct *c, int selfIdx){
     /* Leave the barber chair and give your token to
     the gatekeeper. */
+    int selfIdx = getIdx(c->gk->customers, c->gk->custNo, pthread_self());
+    int barberIdx = -1;
+    for (int i=0;i<c->bNo;i++){
+        if (c->bChairs[i]==selfIdx){
+            barberIdx = i;
+            break;
+        }
+    }
+    // leave the chair
+    c->bChairs[barberIdx] = -1; 
+
+    // increment barber chairs
+    pthread_mutex_lock(&barberLock);
+    c->barberCurrent += 1;
+    pthread_mutex_unlock(&barberLock);
+
+    // return the token
+    pthread_mutex_lock(&tokenLock);
+    *c->gk->tokens += 1;
+    pthread_mutex_unlock(&tokenLock);
+    
+    return;
 }
-void leaveShop(){
+void leaveShop(customerStruct* c, int selfIdx){
     /* Simply say that you've left the shop. */
+    int selfIdx = getIdx(c->gk->customers, c->gk->custNo, pthread_self());
+    c->gk->customerServed[selfIdx] = 1;
+    printf("Customer %d has left the shop.\n", selfIdx);
+    return;
 }
 
-void cutHair(){
+void cutHair(barberStruct* b, int selfIdx, int custIdx){
     /* Cut the waking thread's hair. */
+
 }
 
-void cleanChair(){
+void cleanChair(barberStruct* b, int selfIdx, int custIdx){
     /* Check if the cleaning kit is available.
     If it is, clean the chair and ask for payment from 
         the customer.
     else, wait for the cleaning kit. */
 }
 
-void acceptPayment(){
+void acceptPayment(barberStruct* b, int selfIdx, int custIdx){
     /* Receive payment from the customer. See if the cashier 
     is busy. If not, make the payment and sleep again.*/
+    
 }
 
 void* customer(customerStruct* c){
     /* Assuming that all the customers whose threads are 
     created, are already in the queue waiting. Hence, 
     the pause function being called. */
+    int selfIdx = getIdx(c->gk->customers, c->gk->custNo, pthread_self());
+    printf("Customer %d arrived at the barbershop.\n", selfIdx);
+    
     pause();
-    printf("Thread %ld entered the shop.\n", pthread_self());
-    enterShop(c);
-    sitOnSofa(c);
-    sitInBarberChair(c);
-    waitForPayment(c);
-    pay(c);
-    exitShop(c); // incrementing the tokens
-    leaveShop(c);
+    enterShop(c, selfIdx);
+    sitOnSofa(c, selfIdx);
+    sitInBarberChair(c, selfIdx);
+    waitForPayment(c, selfIdx);
+    pay(c, selfIdx);
+    exitShop(c, selfIdx);
+    leaveShop(c, selfIdx);
 }
 
 void* barber(barberStruct *b){
 
-    while(true) /*put exit condition given by the gatkeeper into this while*/
+    int selfIdx = getIdx(b->barbers, b->bNo, pthread_self());
+    while(b->gk->everyoneServed == false) /*put exit condition given by the gatekeeper into this while*/
     { 
+        printf("Barber %d is waiting for customers, sleeping in a chair.\n", selfIdx);
         pause();
-        cutHair();
-        cleanChair();
-        acceptPayment();
+        int custIdx = getIdx(b->gk->customers, b->gk->custNo, b->bChairs[selfIdx]);
+        printf("Barber %d was woken up by customer %d.\n", selfIdx, custIdx);
+        cutHair(b, selfIdx);
+        cleanChair(b, selfIdx);
+        acceptPayment(b, selfIdx);
     }
 }
 
@@ -132,7 +296,7 @@ void* barber(barberStruct *b){
 just wake up a customer process and decrement the tokens. */
 void *gatekeeper(gkStruct* gk){
     
-    for(int i=0;i<gk->cNo;i++){
+    for(int i=0;i<gk->custNo;i++){
         
         // obtain lock on the tokens and do the operation.
         pthread_mutex_lock(&tokenLock);
@@ -149,6 +313,14 @@ void *gatekeeper(gkStruct* gk){
     
     }
     // once all the customers have entered, gatekeeper is done.
+
+    // check whether all the customers are served.
+    // if yes then tell the barbers to stop waiting and go home.
+    for (int i=0;i<gk->custNo;i++){
+        while (gk->customerServed[i]!=1);
+    }
+    gk->everyoneServed = true;
+    return;
 }
 
 
@@ -184,6 +356,10 @@ int main(int argc, char *argv[])
     }
     int MAX_CUSTOMERS = wNo + bNo;
     barberStruct *barberData = (barberStruct*)malloc(sizeof(barberStruct));
+    barberData->barbers = barbers;
+    barberData->bNo = bNo;
+    barberData->cashier = (pthread_t*)malloc(sizeof(pthread_t));
+    barberData->cleaningKit = (pthread_t*)malloc(sizeof(pthread_t));
 
     for(int i=0;i<bNo;i++){
         // create the barber threads
@@ -195,28 +371,29 @@ int main(int argc, char *argv[])
             fprintf(stderr, "\nERROR %d: Failed while tring to create a barber thread.\n", bCheck);
             exit(1);
         }
-
         bChairs[i] = barbers[i];    // put the barber in the chair
     }
 
     // the data that the gatekeeper needs access to
     gkStruct *gatekeeperData = (gkStruct*)malloc(sizeof(gkStruct));
-    gatekeeperData->cNo = CUSTOMERS;
-    gatekeeperData->customers = (pthread_t*)malloc(gatekeeperData->cNo*sizeof(pthread_t));
+    gatekeeperData->custNo = CUSTOMERS;
+    gatekeeperData->customers = (pthread_t*)malloc(gatekeeperData->custNo*sizeof(pthread_t));
     gatekeeperData->tokens = (int*)malloc(sizeof(int));
     *(gatekeeperData->tokens) = MAX_CUSTOMERS;
+    gatekeeperData->everyoneServed = false;
+    gatekeeperData->customerServed = (int*)malloc(gatekeeperData->custNo*sizeof(int));
 
     customerStruct *customerData = (customerStruct*)malloc(sizeof(customerStruct));
-    customerData->tokens = gatekeeperData->tokens;
-    customerData->bChairs = bChairs;
-    customerData->wArea = wArea;
-    customerData->wChairs = wChairs;
+    customerData->bChairs = bChairs;    // initialize with -1
     customerData->wNo = wNo;
     customerData->bNo = bNo;
     customerData->cNo = cNo;
-    customerData->nextWaiting = 0;
-    customerData->nextSofa = 0;
-    customerData->nextBarber = 0;
+    customerData->waitingCurrent = 0;
+    customerData->sofaCurrent = 0;
+    customerData->barberCurrent = 0;
+    customerData->acceptingPayment = (int*)malloc(customerData->bNo*sizeof(int));
+    customerData->gk = gatekeeperData;
+    customerData->amountEarned = (float*)malloc(customerData->bNo*sizeof(float));
 
     // creating the customers
     for(int i=0;i<CUSTOMERS;i++){
