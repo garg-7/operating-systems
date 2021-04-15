@@ -3,20 +3,67 @@
 #include <pthread.h>
 #include <string.h>
 #include <stdbool.h>
+#include <unistd.h>
+#include <signal.h>
 
-#define MAX_CUSTOMERS 20
 #define CUSTOMERS 50
+#define WAKEUP SIGUSR1
+#define SLEEPNOW SIGUSR2
 
-void enterShop(){
-    /* Check if gatekeeper has token. 
-    If yes, take 1 and enter i.e.
-        occupy a location in the waiting area.
-    Else wait in a queue.*/
+pthread_mutex_t tokenLock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t wAreaLock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t sofaLock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t printLock = PTHREAD_MUTEX_INITIALIZER;
+
+typedef struct customerStruct{
+    pthread_t *bChairs;
+    pthread_t *wArea;
+    pthread_t *wChairs;
+    int bNo;
+    int wNo;
+    int cNo;
+    int nextSofa;
+    int nextWaiting;
+    int nextBarber;
+    int *tokens;
+} customerStruct;
+
+typedef struct barberStruct{
+    pthread_t cleaningKit;          // the barber that is using the cleaning kit
+} barberStruct;
+
+typedef struct gkStuct{
+    int *tokens;
+    pthread_t *customers;
+    int cNo;
+} gkStruct;
+
+void enterShop(customerStruct *c){
+    /* Gatekeeper has given you the token.
+    Occupy a seat in the waiting area */
+    pthread_mutex_lock(&wAreaLock);
+    c->wArea[c->nextWaiting] = pthread_self();
+    c->nextWaiting =+ 1;
+    c->nextWaiting = (c->nextWaiting) % (c-> wNo);
+    pthread_mutex_unlock(&wAreaLock);
+    return;
 }
 
-void sitOnSofa(){
+void sitOnSofa(customerStruct *c){
     /* Occupy a location in the waiting chairs 
     as per availability. */
+    while(true){
+        pthread_mutex_lock(&sofaLock);
+        if (c->nextSofa==-1);
+        else {
+
+            c->wArea[c->nextWaiting] = pthread_self();
+            c->nextWaiting =+ 1;
+            c->nextWaiting = (c->nextWaiting) % (c-> wNo);
+            break;
+        }
+        pthread_mutex_unlock(&sofaLock);
+    }
 }
 
 void sitInBarberChair(){
@@ -56,14 +103,18 @@ void acceptPayment(){
 }
 
 void* customer(customerStruct* c){
+    /* Assuming that all the customers whose threads are 
+    created, are already in the queue waiting. Hence, 
+    the pause function being called. */
     pause();
-    enterShop();
-    sitOnSofa();
-    sitInBarberChair();
-    waitForPayment();
-    pay();
-    exitShop();
-    leaveShop();
+    printf("Thread %ld entered the shop.\n", pthread_self());
+    enterShop(c);
+    sitOnSofa(c);
+    sitInBarberChair(c);
+    waitForPayment(c);
+    pay(c);
+    exitShop(c); // incrementing the tokens
+    leaveShop(c);
 }
 
 void* barber(barberStruct *b){
@@ -71,31 +122,35 @@ void* barber(barberStruct *b){
     while(true) /*put exit condition given by the gatkeeper into this while*/
     { 
         pause();
-        cutHair()
+        cutHair();
         cleanChair();
         acceptPayment();
     }
 }
 
+/* Has to check for available tokens and accordingly, 
+just wake up a customer process and decrement the tokens. */
 void *gatekeeper(gkStruct* gk){
-
+    
+    for(int i=0;i<gk->cNo;i++){
+        
+        // obtain lock on the tokens and do the operation.
+        pthread_mutex_lock(&tokenLock);
+        if (*gk->tokens>0){
+            pthread_kill(gk->customers[i], WAKEUP);
+            *gk->tokens -= 1;
+        }
+        else
+            // come again to check for the same customer 
+            // who couldn't be admitted this time as the 
+            // tokens were not there
+            i--;
+        pthread_mutex_unlock(&tokenLock);
+    
+    }
+    // once all the customers have entered, gatekeeper is done.
 }
 
-typedef struct customerStruct{
-    pthread_t *bChairs;
-    pthread_t *wArea;
-    pthread_t *wChairs;
-    
-} customerStruct;
-
-typedef struct barberStruct{
-    pthread_t cleaningKit;          // the barber that is using the cleaning kit
-} barberStruct;
-
-typedef struct gkStuct{
-    int tokens[MAX_CUSTOMERS];
-    pthread_t *customers;
-} gkStruct;
 
 
 int main(int argc, char *argv[])
@@ -127,7 +182,7 @@ int main(int argc, char *argv[])
             wArea = (pthread_t*)malloc((wNo-cNo)*sizeof(pthread_t));      
         }
     }
-
+    int MAX_CUSTOMERS = wNo + bNo;
     barberStruct *barberData = (barberStruct*)malloc(sizeof(barberStruct));
 
     for(int i=0;i<bNo;i++){
@@ -146,12 +201,26 @@ int main(int argc, char *argv[])
 
     // the data that the gatekeeper needs access to
     gkStruct *gatekeeperData = (gkStruct*)malloc(sizeof(gkStruct));
-    gatekeeperData->customers = (pthread_t*)malloc(CUSTOMERS*sizeof(pthread_t));
-    
+    gatekeeperData->cNo = CUSTOMERS;
+    gatekeeperData->customers = (pthread_t*)malloc(gatekeeperData->cNo*sizeof(pthread_t));
+    gatekeeperData->tokens = (int*)malloc(sizeof(int));
+    *(gatekeeperData->tokens) = MAX_CUSTOMERS;
+
     customerStruct *customerData = (customerStruct*)malloc(sizeof(customerStruct));
+    customerData->tokens = gatekeeperData->tokens;
+    customerData->bChairs = bChairs;
+    customerData->wArea = wArea;
+    customerData->wChairs = wChairs;
+    customerData->wNo = wNo;
+    customerData->bNo = bNo;
+    customerData->cNo = cNo;
+    customerData->nextWaiting = 0;
+    customerData->nextSofa = 0;
+    customerData->nextBarber = 0;
+
     // creating the customers
     for(int i=0;i<CUSTOMERS;i++){
-        int cCheck = pthread_create(&(gatekeeperData->customers[i]), NULL, (void* )customer, &customerData);
+        int cCheck = pthread_create(&(gatekeeperData->customers[i]), NULL, (void* )customer, customerData);
         if (cCheck){
             fprintf(stderr, "\nERROR %d: Failed while tring to create the gatekeeper thread.\n", cCheck);
             exit(1);
@@ -160,13 +229,9 @@ int main(int argc, char *argv[])
 
     // create the gatekeeper thread
     pthread_t gkID;
-    int gCheck = pthread_create(&gkID, NULL, (void *)gatekeeper, &gatekeeperData);
+    int gCheck = pthread_create(&gkID, NULL, (void *)gatekeeper, gatekeeperData);
     if (gCheck){
         fprintf(stderr, "\nERROR %d: Failed while tring to create the gatekeeper thread.\n", gCheck);
         exit(1);
     }
-
-
-
-
 }
