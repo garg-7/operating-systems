@@ -1,0 +1,102 @@
+Barber 0 is waiting for customers, sleeping in a chair.
+Barber 1 is waiting for customers, sleeping in a chair.
+Barber 2 is waiting for customers, sleeping in a chair.
+Customer 0 arrived at the barbershop.
+Customer 1 arrived at the barbershop.
+Customer 2 arrived at the barbershop.
+Customer 3 arrived at the barbershop.
+Customer 4 arrived at the barbershop.
+Customer 5 arrived at the barbershop.
+Customer 0 collects a token from the gatekeeper.
+Customer 0 enters the barbershop.
+Customer 0 is in the waiting area.
+Customer 0 takes a seat on the sofa in the waiting room.
+Customer 0 sits on barber chair 0 for a haircut.
+Customer 1 collects a token from the gatekeeper.
+Customer 1 enters the barbershop.
+Customer 1 is in the waiting area.
+Customer 2 collects a token from the gatekeeper.
+Customer 2 enters the barbershop.
+Customer 2 is in the waiting area.
+Customer 3 collects a token from the gatekeeper.
+Customer 3 enters the barbershop.
+Customer 3 is in the waiting area.
+Customer 4 collects a token from the gatekeeper.
+Customer 4 enters the barbershop.
+Customer 4 is in the waiting area.
+Customer 5 collects a token from the gatekeeper.
+Customer 5 enters the barbershop.
+Customer 5 is in the waiting area.
+Customer 1 takes a seat on the sofa in the waiting room.
+Customer 2 takes a seat on the sofa in the waiting room.
+Customer 3 takes a seat on the sofa in the waiting room.
+Customer 4 takes a seat on the sofa in the waiting room.
+Customer 5 takes a seat on the sofa in the waiting room.
+Customer 0 is waiting to pay to barber 0.
+Barber 0 was woken up by customer 0.
+Barber 0 started haircut of customer 0.
+Barber 0 finishes haircut of customer 0.
+Barber 0 is cleaning.
+Customer 1 sits on barber chair 1 for a haircut.
+Customer 1 is waiting to pay to barber 1.
+Customer 2 sits on barber chair 2 for a haircut.
+Barber 1 was woken up by customer 1.
+Barber 1 started haircut of customer 1.
+Barber 1 finishes haircut of customer 1.
+Customer 2 is waiting to pay to barber 2.
+Barber 2 was woken up by customer 2.
+Barber 2 started haircut of customer 2.
+Barber 2 finishes haircut of customer 2.
+Customer 0 will pay now.
+Customer 0 completes payment.
+Customer 0 has left the shop.
+Barber 1 is cleaning.
+Barber 0 receives payment from customer 0.
+Barber 0 is waiting for customers, sleeping in a chair.
+Customer 1 will pay now.
+Customer 1 completes payment.
+Barber 2 is cleaning.
+Customer 1 has left the shop.
+Barber 1 receives payment from customer 1.
+Barber 1 is waiting for customers, sleeping in a chair.
+Customer 3 sits on barber chair 0 for a haircut.
+Customer 3 is waiting to pay to barber 0.
+Barber 0 was woken up by customer 3.
+Barber 0 started haircut of customer 3.
+Barber 0 finishes haircut of customer 3.
+Customer 2 will pay now.
+Customer 2 completes payment.
+Customer 2 has left the shop.
+Barber 2 receives payment from customer 2.
+Barber 2 is waiting for customers, sleeping in a chair.
+Customer 4 sits on barber chair 1 for a haircut.
+Barber 0 is cleaning.
+Customer 4 is waiting to pay to barber 1.
+Barber 1 was woken up by customer 4.
+Barber 1 started haircut of customer 4.
+Barber 1 finishes haircut of customer 4.
+Customer 3 will pay now.
+Customer 3 completes payment.
+Barber 1 is cleaning.
+Customer 3 has left the shop.
+Barber 0 receives payment from customer 3.
+Barber 0 is waiting for customers, sleeping in a chair.
+Customer 5 sits on barber chair 0 for a haircut.
+Customer 5 is waiting to pay to barber 0.
+Barber 0 was woken up by customer 5.
+Barber 0 started haircut of customer 5.
+Barber 0 finishes haircut of customer 5.
+Customer 4 will pay now.
+Customer 4 completes payment.
+Barber 0 is cleaning.
+Customer 4 has left the shop.
+Barber 1 receives payment from customer 4.
+Barber 1 is waiting for customers, sleeping in a chair.
+Customer 5 will pay now.
+Customer 5 completes payment.
+Customer 5 has left the shop.
+All the customers are served.
+Barber 0 receives payment from customer 5.
+Barber 2 is leaving the shop for the day.
+Barber 0 is leaving the shop for the day.
+Barber 1 is leaving the shop for the day.
