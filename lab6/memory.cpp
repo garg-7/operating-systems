@@ -6,7 +6,7 @@
 
 // #define DEBUG_LRU
 // #define DEBUG_FIFO
-#define DEBUG_OPTIMAL
+// #define DEBUG_OPTIMAL
 
 #define MAX_INPUT_SIZE 100
 #define ENOUGH_SIZE 50
@@ -227,15 +227,18 @@ int getVictim(int pageTable[], int f, int arr[], int curr, int size)
     }
 
     int largest = -1;
+    int largestIdx = -1;
     for(int i=0;i<f;i++){
         if (firstUse[i]==-1){
-            largest = i;
+            largestIdx = i;
             break;
         }
-        else if (firstUse[i]>largest)
-        largest = i;
+        else if (firstUse[i]>largest) {
+            largestIdx = i;
+            largest = firstUse[i];
+        }
     }
-    return pageTable[largest];
+    return pageTable[largestIdx];
 }
 
 int OPTIMAL(int arr[], int size, int f)
@@ -332,37 +335,14 @@ int main(int argc, char *argv[])
         printf("Faults:\n");
         printf("FIFO: %d LRU: %d OPTIMAL: %d\n", fifoFaults, lruFaults, optimalFaults);
 
-        if (fifoFaults <= lruFaults)
-        {
-            if (fifoFaults <= optimalFaults)
-            {
-                printf("The best is FIFO.\n");
-            }
-            else
-            {
-                printf("The best is OPTIMAL.\n");
-            }
-        }
-        else
-        {
-            if (lruFaults <= optimalFaults)
-            {
-                printf("The best is LRU.\n");
-            }
-            else
-            {
-                printf("The best is OPTIMAL.\n");
-            }
-        }
-        exit(4);
-
         printf("Checking for Belady's Anomaly...\n");
         int prevBest = fifoFaults;
         bool beladys = false;
-        for (int k = f + 1; k < f + 10; k++)
+        for (int k = f + 1; k < f + 11; k++)
         {
             fifoFaults = FIFO(ref, size, k);
-            if (fifoFaults < prevBest)
+            printf("  [Frames: %d] FIFO Faults: %d\n", k, fifoFaults);
+            if (fifoFaults <= prevBest)
             {
                 prevBest = fifoFaults;
             }
